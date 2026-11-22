@@ -166,7 +166,7 @@ fun PlayerScreen(onBack: () -> Unit) {
         else null
     }
 
-    val live = durMs <= 0L
+    val live = !isYt || durMs <= 0L
 
     Column(
         Modifier

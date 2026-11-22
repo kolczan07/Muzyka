@@ -115,6 +115,7 @@ class RadioService : MediaSessionService() {
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var lastFetch = 0L
+    private val reconnectTimes = ArrayList<Long>()
 
     private var dsFactory: androidx.media3.datasource.DataSource.Factory? = null
     private var tail: ExoPlayer? = null
@@ -247,6 +248,27 @@ class RadioService : MediaSessionService() {
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 mediaItem?.toYtTrack()?.let { try { MusicStore.addHistory(applicationContext, it) } catch (e: Exception) { } }
+            }
+        })
+
+        // Radio internetowe: gdy strumień się skończy (np. wygasł token HLS), łączymy się ponownie (max 3 razy na minutę)
+        player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state != Player.STATE_ENDED) return
+                val cur = player.currentMediaItem ?: return
+                if (cur.localConfiguration?.uri?.scheme == "ytm") return
+                val orig = cur.mediaId.takeIf { it.startsWith("http") } ?: return
+                val now = android.os.SystemClock.elapsedRealtime()
+                reconnectTimes.removeAll { now - it > 60_000L }
+                if (reconnectTimes.size >= 3) return
+                reconnectTimes.add(now)
+                scope.launch {
+                    val host = try { android.net.Uri.parse(orig).host.orEmpty() } catch (e: Exception) { "" }
+                    val real = if (host.endsWith("reconv.pl")) (resolveRedirect(applicationContext, orig) ?: orig) else orig
+                    player.setMediaItem(cur.buildUpon().setUri(real).build())
+                    player.prepare()
+                    player.play()
+                }
             }
         })
 
@@ -439,6 +461,7 @@ fun RadioScreen(onBack: () -> Unit, onOpenPlayer: () -> Unit = {}) {
             } catch (e: Exception) { null }
             c.setMediaItem(
                 MediaItem.Builder()
+                    .setMediaId(s.url) // adres źródłowy stacji: potrzebny do ponownego połączenia
                     .setUri(real)
                     .setMediaMetadata(
                         MediaMetadata.Builder()
