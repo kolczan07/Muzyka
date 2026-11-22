@@ -1,0 +1,55 @@
+name: Build debug APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+      - name: Decode keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_B64 }}" ]; then echo "${{ secrets.KEYSTORE_B64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"; else echo "Brak sekretów podpisu - build podpisany kluczem debug"; fi
+      - name: Build debug APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo v0.0)
+          gradle assembleDebug --no-daemon \
+            -PversionName="${TAG#v}-debug" \
+            -PversionCode=$(( $(date +%s) / 60 ))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: muzyka-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+      - name: Zip debug APK
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)
+          mkdir out
+          cp "$APK" out/Muzyka-debug.apk
+          (cd out && zip Muzyka-debug.zip Muzyka-debug.apk)
+      - name: Publish debug release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete debug --cleanup-tag --yes || true
+          gh release create debug out/Muzyka-debug.zip \
+            --prerelease \
+            --title "Debug build" \
+            --notes "Automatyczny build debug z commita ${GITHUB_SHA::7}" \
+            --target "$GITHUB_SHA"
