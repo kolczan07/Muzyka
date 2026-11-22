@@ -345,7 +345,7 @@ private suspend fun resolveRedirect(ctx: android.content.Context, url: String): 
     }
 
 @Composable
-fun RadioScreen(onBack: () -> Unit) {
+fun RadioScreen(onBack: () -> Unit, onOpenPlayer: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -606,6 +606,7 @@ fun RadioScreen(onBack: () -> Unit) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(cs.surface)
                         .border(1.dp, cs.outlineVariant, RoundedCornerShape(20.dp))
+                        .clickable { onOpenPlayer() }
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -649,8 +650,8 @@ internal object LogoCache {
     private val mem = android.util.LruCache<String, Bitmap>(80)
     private val failed = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-    suspend fun load(ctx: android.content.Context, url: String): Bitmap? = withContext(Dispatchers.IO) {
-        mem.get(url)?.let { return@withContext it }
+    suspend fun load(ctx: android.content.Context, url: String, target: Int = 160): Bitmap? = withContext(Dispatchers.IO) {
+        mem.get("$url#$target")?.let { return@withContext it }
         if (url in failed) return@withContext null
         try {
             val dir = File(ctx.cacheDir, "radio_logos").apply { mkdirs() }
@@ -663,7 +664,7 @@ internal object LogoCache {
                 try {
                     if (c.responseCode !in 200..299) throw IOException("HTTP ${c.responseCode}")
                     val b = c.inputStream.use { it.readBytes() }
-                    if (b.size > 400_000) throw IOException("za duży")
+                    if (b.size > 1_500_000) throw IOException("za duży")
                     f.writeBytes(b)
                     b
                 } finally {
@@ -673,9 +674,9 @@ internal object LogoCache {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             val side = maxOf(bounds.outWidth, bounds.outHeight)
-            val opts = BitmapFactory.Options().apply { inSampleSize = maxOf(1, side / 160) }
+            val opts = BitmapFactory.Options().apply { inSampleSize = maxOf(1, side / target) }
             val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
-            if (bmp == null) { failed.add(url); null } else { mem.put(url, bmp); bmp }
+            if (bmp == null) { failed.add(url); null } else { mem.put("$url#$target", bmp); bmp }
         } catch (e: Exception) {
             failed.add(url)
             null

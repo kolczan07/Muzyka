@@ -56,8 +56,9 @@ fun App() {
     Box(Modifier.fillMaxSize()) {
         when (stack.last()) {
             Screen.Home -> HomeScreen(onOpen = { go(it) })
-            Screen.Radio -> RadioScreen(onBack = { back() })
-            Screen.YtMusic -> YtMusicScreen(onBack = { back() })
+            Screen.Radio -> RadioScreen(onBack = { back() }, onOpenPlayer = { go(Screen.Player) })
+            Screen.Player -> PlayerScreen(onBack = { back() })
+            Screen.YtMusic -> YtMusicScreen(onBack = { back() }, onOpenPlayer = { go(Screen.Player) })
             Screen.About -> AboutScreen(onBack = { back() })
         }
         autoUpdate?.let { UpdateDialog(it) { autoUpdate = null } }
