@@ -71,7 +71,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.delay
 
-private data class QItem(val index: Int, val id: String, val title: String, val artist: String, val thumb: String)
+internal data class QItem(val index: Int, val id: String, val title: String, val artist: String, val thumb: String)
 
 private fun fmt(ms: Long): String {
     val s = (ms / 1000).coerceAtLeast(0)
@@ -80,7 +80,7 @@ private fun fmt(ms: Long): String {
 
 /** Duży odtwarzacz: okładka, pasek postępu, sterowanie, losowo/powtarzanie i kolejka. Otwiera się z mini-odtwarzacza. */
 @Composable
-fun PlayerScreen(onBack: () -> Unit) {
+fun PlayerScreen(onBack: () -> Unit, skin: String = "classic") {
     val ctx = LocalContext.current
     val cs = MaterialTheme.colorScheme
 
@@ -168,10 +168,18 @@ fun PlayerScreen(onBack: () -> Unit) {
 
     val live = !isYt || durMs <= 0L
 
+    if (skin == "winamp") {
+        WinampPlayer(
+            controller, title, artist, playing, isYt, live, empty, error,
+            posMs, durMs, shuffle, repeat, queue, curIndex, onBack
+        )
+        return
+    }
+
     Column(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF2A1250), Color(0xFF0B0714))))
+            .background(Brush.verticalGradient(listOf(gradientTop(), gradientBottom())))
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {

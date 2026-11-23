@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Icon
@@ -49,7 +50,7 @@ fun Vinyl(modifier: Modifier = Modifier) {
 fun HomeScreen(onOpen: (Screen) -> Unit) {
     Column(
         Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF2A1250), Color(0xFF0B0714)), endY = 900f))
+            .background(Brush.verticalGradient(listOf(gradientTop(), gradientBottom()), endY = 900f))
             .statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -62,6 +63,9 @@ fun HomeScreen(onOpen: (Screen) -> Unit) {
                     )
                 )
                 Text("Co dziś gramy?", color = Color(0xFFA99BC9), fontSize = 15.sp)
+            }
+            IconButton(onClick = { onOpen(Screen.Theme) }) {
+                Icon(Icons.Filled.Palette, contentDescription = "Motyw", tint = Color(0xFFA99BC9))
             }
             IconButton(onClick = { onOpen(Screen.About) }) {
                 Icon(Icons.Filled.Info, contentDescription = "O aplikacji", tint = Color(0xFFA99BC9))

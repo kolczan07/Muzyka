@@ -19,18 +19,32 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+    private var themeMode by mutableStateOf("club")
+    private var skin by mutableStateOf("classic")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(AColor.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(AColor.TRANSPARENT)
         )
-        setContent { AppTheme { App() } }
+        themeMode = Prefs.theme(this)
+        skin = Prefs.playerSkin(this)
+        setContent {
+            AppTheme(oled = themeMode == "oled") {
+                App(
+                    themeMode = themeMode,
+                    onTheme = { themeMode = it; Prefs.setTheme(this@MainActivity, it) },
+                    skin = skin,
+                    onSkin = { skin = it; Prefs.setPlayerSkin(this@MainActivity, it) }
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun App() {
+fun App(themeMode: String, onTheme: (String) -> Unit, skin: String, onSkin: (String) -> Unit) {
     val stack = remember { mutableStateListOf(Screen.Home) }
     var splash by remember { mutableStateOf(true) }
     var autoUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -57,9 +71,10 @@ fun App() {
         when (stack.last()) {
             Screen.Home -> HomeScreen(onOpen = { go(it) })
             Screen.Radio -> RadioScreen(onBack = { back() }, onOpenPlayer = { go(Screen.Player) })
-            Screen.Player -> PlayerScreen(onBack = { back() })
+            Screen.Player -> PlayerScreen(onBack = { back() }, skin = skin)
             Screen.YtMusic -> YtMusicScreen(onBack = { back() }, onOpenPlayer = { go(Screen.Player) })
             Screen.About -> AboutScreen(onBack = { back() })
+            Screen.Theme -> ThemeScreen(themeMode, onTheme, skin, onSkin, onBack = { back() })
         }
         autoUpdate?.let { UpdateDialog(it) { autoUpdate = null } }
         AnimatedVisibility(visible = splash, exit = fadeOut()) { BootLogo() }
